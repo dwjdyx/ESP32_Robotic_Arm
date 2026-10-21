@@ -1,4 +1,3 @@
-#include "servo.h"
 #include "manip.h"
 #include "math.h"
 #include "esp_log.h"
@@ -253,8 +252,7 @@ void theta_to_angle(const float joint_angle, joint_id_t joint_id, float *servo_a
 // ==================== 以下转换公式根据实际修改 ======================
     *servo_angle = cfg->offset + cfg->dir * joint_angle;
 
-    // 角度范围限制
-    if(*servo_angle < 0) *servo_angle = 0;
-    else if(*servo_angle > 270) *servo_angle = 270;
+    //角度限位
+    *servo_angle = CLAMP(*servo_angle,ANGLE_MIN,ANGLE_MAX);
     
 }

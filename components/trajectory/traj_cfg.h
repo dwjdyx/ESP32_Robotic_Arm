@@ -1,5 +1,5 @@
-#ifndef _TRAJ_PARAM_H_
-#define _TRAJ_PARAM_H_
+#ifndef _TRAJ_CFG_H_
+#define _TRAJ_CFG_H_
 
 #include "manip.h"
 #include "freertos/FreeRTOS.h"

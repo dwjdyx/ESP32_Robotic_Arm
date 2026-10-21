@@ -1,4 +1,4 @@
-#include "manip_str.h"
+#include "manip_config.h"
 
 manip_t manipulator = {
     .target_pos = {0.0f, 0.0f, 131.0f},
@@ -23,11 +23,11 @@ manip_t manipulator = {
             .last_joint_angle = 135.0f,
             .servo_angle = 135.0f
         },
-//        [JOINT_5] = {
-//            .joint_angle = 0.0f,
-//            .last_joint_angle = 0.0f,
-//            .servo_angle = 0.0f
-//        },
+       [JOINT_5] = {
+           .joint_angle = 0.0f,
+           .last_joint_angle = 0.0f,
+           .servo_angle = 0.0f
+       },
     },
     .initialized = false
 };
@@ -59,9 +59,9 @@ const joint_config_t joint_config[JOINT_MAX_NUM] =
         .servo_id = SERVO_WRIST
     },
 
-//    [JOINT_5] = {
-//        .offset = 90.0f,
-//        .dir = 1.0f,
-//        .servo_id = SERVO_GRIPPER
-//    }
+   [JOINT_5] = {
+       .offset = 90.0f,
+       .dir = 1.0f,
+       .servo_id = SERVO_GRIPPER
+   }
 };

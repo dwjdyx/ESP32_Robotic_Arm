@@ -11,14 +11,13 @@
 #include "driver/gpio.h"
 #include "stdint.h"
 
-#include "servo.h"
+#include "system.h"
 #include "traj.h"
 #include "test.h"
 
 void app_main(void)
 {
-    servo_init();
-
+    system_init();
 // ================== 验证FKIK ======================
 //    manip_FKtest();
     manip_IKtest();

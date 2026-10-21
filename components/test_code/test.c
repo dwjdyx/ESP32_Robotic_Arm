@@ -1,22 +1,8 @@
 #include "test.h"
 #include "manip.h"
-#include "servo.h"
 #include "stdio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
-// ==================== 舵机转动方向测试 ====================
-void servo_direction_test(void)
-{
-       for(servo_id_t i = SERVO_BASE; i < SERVO_MAX; i++)
-       {
-              for(int j = 30; j <= 270; j+=30)
-              {
-                     servo_angle_set(i, j);
-                     vTaskDelay(pdMS_TO_TICKS(500));
-              }
-       }
-}
 
 // ==================== 运动学测试 ==========================
 //测试运动学函数   正向测试

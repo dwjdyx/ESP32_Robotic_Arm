@@ -2,7 +2,7 @@
 #define _MANIP_H_
 
 #include <stdbool.h>
-#include "manip_str.h"
+#include "manip_config.h"
 
 // ============== 定义关节软限位（根据机器蜘蛛实际结构调整）=============
 #define THETA1_MIN  -180.0f

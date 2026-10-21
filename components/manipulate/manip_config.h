@@ -1,7 +1,8 @@
-#ifndef _MANIP_STR_H_
-#define _MANIP_STR_H_
+#ifndef _MANIP_CONFIG_H_
+#define _MANIP_CONFIG_H_
 
 #include "servo.h"
+#include "stdbool.h"
 
 typedef enum
 {
@@ -9,7 +10,7 @@ typedef enum
     JOINT_2,
     JOINT_3,
     JOINT_4,
-
+    JOINT_5,
     JOINT_MAX_NUM
 
 } joint_id_t;
