@@ -26,6 +26,7 @@ static bool g_system_running = false;
 
 // 声明互斥锁句柄
 SemaphoreHandle_t xAngleMutex = NULL;
+SemaphoreHandle_t xPosMutex = NULL;
 
 // 包装数据
 void txdata_package(servo_angle_t *angle, uint8_t* tx_buf)
@@ -62,11 +63,12 @@ void system_init(void)
 {
     // 创建互斥锁
     xAngleMutex = xSemaphoreCreateMutex();
+    xPosMutex = xSemaphoreCreateMutex();
     
     // 防护：检查创建是否成功
-    if (xAngleMutex == NULL) {
+    if (xAngleMutex == NULL || xPosMutex == NULL) {
         // 创建失败处理
-        ESP_LOGE("INIT", "xAngleMutex creat fail!");
+        ESP_LOGE("INIT", "Mutex creat fail!");
         return;
     }
     oled_init();
@@ -88,8 +90,33 @@ void system_init(void)
 
     // // 初始化 WebSocket 服务器
     // ESP_ERROR_CHECK(websocket_server_init());
-
 }
+
+// // 数据解析函数
+// bool parse_coord_frame(const uint8_t *data, uint16_t len, pos_t *pos)
+// {
+//     if (data == NULL || pos == NULL || len != FRAME_LEN) {
+//         return false;
+//     }
+
+//     // 检查帧头和帧尾
+//     if (data[0] != FRAME_HEADER_1 ||
+//         data[1] != FRAME_HEADER_2 ||
+//         data[8] != FRAME_TAIL) {
+//         return false;
+//     }
+
+//     // 大端格式：高字节在前
+//     int16_t x = (int16_t)(((uint16_t)data[2] << 8) | data[3]);
+//     int16_t y = (int16_t)(((uint16_t)data[4] << 8) | data[5]);
+//     int16_t z = (int16_t)(((uint16_t)data[6] << 8) | data[7]);
+
+//     pos->x = (float)x;
+//     pos->y = (float)y;
+//     pos->z = (float)z;
+
+//     return true;
+// }
 
 void oled_show_task(void *param)
 {

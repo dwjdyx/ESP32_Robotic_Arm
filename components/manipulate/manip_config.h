@@ -33,7 +33,6 @@ typedef struct
 {
     pos_t target_pos;                   // 目标位置
     angle_t angle[JOINT_MAX_NUM];       // 各关节角度
-    bool initialized;                   // 用于忽略第一次检验角度变化
 }manip_t;
 
 typedef struct

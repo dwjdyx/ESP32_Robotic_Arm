@@ -28,8 +28,7 @@ manip_t manipulator = {
            .last_joint_angle = 0.0f,
            .servo_angle = 0.0f
        },
-    },
-    .initialized = false
+    }
 };
 
 //映射表，根据实际情况修改offset和dir

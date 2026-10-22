@@ -14,5 +14,6 @@ void system_init(void);
 void oled_show_task(void *param);
 void ps2_task(void *param);
 void send_data_task(void *param);
+// bool parse_coord_frame(const uint8_t *data, uint16_t len, pos_t *pos);
 
 #endif

@@ -17,9 +17,9 @@
 
 void app_main(void)
 {
-    system_init();
+//   system_init();
 // ================== 验证FKIK ======================
-//    manip_FKtest();
+    manip_FKtest();
     manip_IKtest();
 // =====================================================
 
