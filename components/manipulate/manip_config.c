@@ -6,27 +6,27 @@ manip_t manipulator = {
         [JOINT_1] = {
             .joint_angle = 0.0f,
             .last_joint_angle = 0.0f,
-            .servo_angle = 0.0f
+            .servo_angle = 135.0f
         },
         [JOINT_2] = {
-            .joint_angle = 0.0f,
-            .last_joint_angle = 0.0f,
-            .servo_angle = 0.0f
+            .joint_angle = -90.0f,
+            .last_joint_angle = -90.0f,
+            .servo_angle = 141.0f
         },
         [JOINT_3] = {
-            .joint_angle = 0.0f,
-            .last_joint_angle = 0.0f,
-            .servo_angle = 0.0f
+            .joint_angle = -90.0f,
+            .last_joint_angle = -90.0f,
+            .servo_angle = 135.0f
         },
         [JOINT_4] = {
-            .joint_angle = 135.0f,
-            .last_joint_angle = 135.0f,
+            .joint_angle = -90.0f,
+            .last_joint_angle = -90.0f,
             .servo_angle = 135.0f
         },
        [JOINT_5] = {
-           .joint_angle = 0.0f,
-           .last_joint_angle = 0.0f,
-           .servo_angle = 0.0f
+           .joint_angle = -90.0f,
+           .last_joint_angle = -90.0f,
+           .servo_angle = 135.0f
        },
     }
 };
@@ -35,31 +35,31 @@ manip_t manipulator = {
 const joint_config_t joint_config[JOINT_MAX_NUM] =
 {
     [JOINT_1] = {
-        .offset = 90.0f,
-        .dir = 1.0f,
+        .offset = 135.0f,
+        .dir = -1.0f,
         .servo_id = SERVO_BASE
     },
 
     [JOINT_2] = {
-        .offset = 90.0f,
+        .offset = 231.0f,
         .dir = 1.0f,
         .servo_id = SERVO_SHOULDER
     },
 
     [JOINT_3] = {
-        .offset = 90.0f,
-        .dir = 1.0f,
+        .offset = 45.0f,
+        .dir = -1.0f,
         .servo_id = SERVO_ELBOW
     },
 
     [JOINT_4] = {
-        .offset = 0.0f,
+        .offset = 225.0f,
         .dir = 1.0f,
         .servo_id = SERVO_WRIST
     },
 
    [JOINT_5] = {
-       .offset = 90.0f,
+       .offset = 225.0f,
        .dir = 1.0f,
        .servo_id = SERVO_GRIPPER
    }

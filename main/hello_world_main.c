@@ -11,16 +11,20 @@
 #include "driver/gpio.h"
 #include "stdint.h"
 
-#include "system.h"
+#include "manip.h"
 #include "traj.h"
 #include "test.h"
 
 void app_main(void)
 {
 //   system_init();
-// ================== 验证FKIK ======================
-    manip_FKtest();
-    manip_IKtest();
+    manipulator.target_pos.x = 7.25f;
+    manipulator.target_pos.y = 7.25f;
+    manipulator.target_pos.z = 274.0f;
+
+    manip_control_task(&manipulator);
+    printf("%.2f %.2f %.2f\n",manipulator.angle[JOINT_1].joint_angle, manipulator.angle[JOINT_2].joint_angle,
+                                manipulator.angle[JOINT_2].joint_angle);
 // =====================================================
 
 //    xTaskCreatePinnedToCore(traj_task, "traj_task", 4096, NULL, 1, NULL, 0 );

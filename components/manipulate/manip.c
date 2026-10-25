@@ -115,142 +115,162 @@ static bool check_fk_precision(const pos_t *target_pos, const float *angle) {
  * @param  angle        输出关节角度
  * @return bool         解算成功返回 true，超工作空间返回 false
  */
-bool manip_IK(const pos_t *target_pos, float *fir_angle, float *sec_angle)
+bool manip_IK(const pos_t *target_pos, float calc_angle[4][JOINT_5])
 {
-    if (target_pos == NULL || fir_angle == NULL || sec_angle == NULL) return false;
-
-    float angle_1[JOINT_4];
-    float angle_2[JOINT_4];
+    if (target_pos == NULL || calc_angle == NULL) return false;
+    float angle[4][JOINT_4] = {
+        {0.0f,0.0f,0.0f},
+        {0.0f,0.0f,0.0f},
+        {0.0f,0.0f,0.0f},
+        {0.0f,0.0f,0.0f}
+    };
 
     float x = target_pos->x;
     float y = target_pos->y;
     float z = target_pos->z;
     float xy_sq = x * x + y * y;
     
+    if (!isfinite(x) || !isfinite(y) || !isfinite(z))
+    {
+        ESP_LOGE(TAG_IK, "目标坐标包含无效数值");
+        return false;
+    }
+
     float h = d2 - d3;
     float r = xy_sq - h*h;
-    // 工作空间安全校验：根号内不能为负数
     if(r < 0)
     {
         ESP_LOGE(TAG_IK, "目标点过近，根号内为负数");
         return false; 
     }
-    float R = sqrtf(r);
+    float R_1 = sqrtf(r);
+    float R_2 = -sqrtf(r);
     float L = d4 + d5;
-    float P = R - L1;
+    float P_1 = R_1 - L1;
+    float P_2 = R_2 - L1;
+    float alpha = atan2f(L,L3);
+    float C_1 = (P_1*P_1 + z*z -L2*L2 - L*L)/(2.0f*L2*L);
+    float C_2 = (P_2*P_2 + z*z -L2*L2 - L*L)/(2.0f*L2*L);
+    if (C_1 < -1.0f || C_1 > 1.0f)
+        ESP_LOGW(TAG_IK, "C_1 超出 acosf 定义域: %.6f", C_1);
+
+    if (C_2 < -1.0f || C_2 > 1.0f)
+        ESP_LOGW(TAG_IK, "C_2 超出 acosf 定义域: %.6f", C_2);
 // ===================== 以下公式根据实际变换矩阵修改 ======================
-    // 第一关节(因为当前h=0,后半部分为0，因此不考虑+情况)
-    float t1 = atan2f(y, x) - atan2f(h, R);
-    angle_1[JOINT_1] = angle_2[JOINT_1] =  t1 * RAD_TO_DEG;
+    // 第一关节
+    float t1_1 = atan2f(y, x) - atan2f(h, R_1);
+    float t1_2 = atan2f(y, x) - atan2f(h, R_2);
+    angle[1][JOINT_1] = angle[0][JOINT_1] = t1_1 * RAD_TO_DEG;
+    angle[3][JOINT_1] = angle[2][JOINT_1] = t1_2 * RAD_TO_DEG;
 
-    //第三关节(含两种解)
-    float K = (L2 * L2 + L * L - P * P - z * z)
-          / (2.0f * L2 * L);
-
-    if (K < -1.0f - 1e-6f || K > 1.0f + 1e-6f) {
-        ESP_LOGE(TAG_IK, "目标点超出工作空间");
-        return false;
-    }
-
-    K = fmaxf(-1.0f, fminf(1.0f, K));
-
-    float t3_1 = asinf(K);
-    float t3_2 = PI - t3_1;
-    angle_1[JOINT_3] = t3_1 * RAD_TO_DEG;
-    angle_2[JOINT_3] = t3_2 * RAD_TO_DEG;
+    float t3_1_1 = acosf(C_1) - alpha;
+    float t3_1_2 = -acosf(C_1) - alpha;
+    float t3_2_1 = acosf(C_2) - alpha;
+    float t3_2_2 = -acosf(C_2) - alpha;
+    angle[0][JOINT_3] = t3_1_1 * RAD_TO_DEG;
+    angle[1][JOINT_3] = t3_1_2 * RAD_TO_DEG;
+    angle[2][JOINT_3] = t3_2_1 * RAD_TO_DEG;
+    angle[3][JOINT_3] = t3_2_2 * RAD_TO_DEG;
 
     // 第二关节
-    float t2_1 = atan2f(L*cosf(t3_1),L2-L*sinf(t3_1)) - atan2f(z,P);
-    float t2_2 = atan2f(L*cosf(t3_2),L2-L*sinf(t3_2)) - atan2f(z,P);
-    angle_1[JOINT_2] = t2_1 * RAD_TO_DEG;
-    angle_2[JOINT_2] = t2_2 * RAD_TO_DEG;
+    float t2_1_1 = atan2f(-z,P_1) + atan2f(L*sin(t3_1_1 + alpha), L2 + L*cos(t3_1_1 + alpha));
+    float t2_1_2 = atan2f(-z,P_1) + atan2f(L*sin(t3_1_2 + alpha), L2 + L*cos(t3_1_2 + alpha));
+    float t2_2_1 = atan2f(-z,P_2) + atan2f(L*sin(t3_2_1 + alpha), L2 + L*cos(t3_2_1 + alpha));
+    float t2_2_2 = atan2f(-z,P_2) + atan2f(L*sin(t3_2_2 + alpha), L2 + L*cos(t3_2_2 + alpha));
+    angle[0][JOINT_2] = t2_1_1 * RAD_TO_DEG;
+    angle[1][JOINT_2] = t2_1_2 * RAD_TO_DEG;
+    angle[2][JOINT_2] = t2_2_1 * RAD_TO_DEG;
+    angle[3][JOINT_2] = t2_2_2 * RAD_TO_DEG;
 
-    for(joint_id_t i = JOINT_1; i<=JOINT_3; i++)
+    for (int i = 0; i < 4; i++)
     {
-        fir_angle[i] = angle_1[i];
-        sec_angle[i] = angle_2[i];
+        for(joint_id_t j = JOINT_1; j<=JOINT_3; j++)
+        {
+            calc_angle[i][j] = angle[i][j];
+        }
     }
-
-    //第四关节固定135.0f
-    fir_angle[JOINT_4] = sec_angle[JOINT_4] = 135.0f;
     
+    calc_angle[0][JOINT_4] = -90.0f;
+    calc_angle[1][JOINT_4] = -90.0f;
+    calc_angle[2][JOINT_4] = -90.0f;
+    calc_angle[3][JOINT_4] = -90.0f;
+
     return true;
 }
 
-uint8_t mult_solutions_selection(float *angle1, float *angle2, const angle_t *g_angle)
+// 计算误差
+int8_t mult_solutions_selection(float calc_angle[4][JOINT_5], const angle_t *g_angle, const bool flag[4])
 {
     // ==================== 多解选择 ====================
-    float sum0 = 0.0f;
-    float sum1 = 0.0f;
-
-    for (joint_id_t i = JOINT_1; i <= JOINT_4; i++)
+    int8_t min_index = -1;
+    float min_errors = INFINITY;
+    for (int j = 0; j < 4; j++)
     {
-        float current = g_angle[i].last_joint_angle;
+        if (!flag[j])
+        {
+            continue;
+        }
+        float errors = 0.0f;
+        for (joint_id_t i = JOINT_1; i <= JOINT_4; i++)
+        {
+            float current = g_angle[i].last_joint_angle;
 
-        float diff0 = angle1[i] - current;
-        float diff1 = angle2[i] - current;
+            float diff = calc_angle[j][i] - current;
 
-        sum0 += diff0 * diff0;
-        sum1 += diff1 * diff1;
+            errors += diff * diff;
+        }
+        if(errors < min_errors)
+        {
+            min_errors = errors;
+            min_index = j;
+        }
     }
-
-    // 选择角度变化更小的候选解
-    uint8_t flag = (sum0 <= sum1) ? 0 : 1;
-    return flag;
+    return min_index;
 }
 
 bool manip_control_task(manip_t *manipulator) 
 {
     if (manipulator == NULL) return false;
-    uint8_t check_flag = 2;
+    bool check_flag[4] = {true,true,true,true};
 
     // 使用局部临时变量接收 IK 解算结果（防止脏数据写入）
-    float calc_angle[2][JOINT_5] = {{0.0f,0.0f,0.0f,0.0f},
+    float calc_angle[4][JOINT_5] = {{0.0f,0.0f,0.0f,0.0f},
+                                    {0.0f,0.0f,0.0f,0.0f},
+                                    {0.0f,0.0f,0.0f,0.0f},
                                     {0.0f,0.0f,0.0f,0.0f}};
 
     // 求解 IK
-    if (!manip_IK(&manipulator->target_pos, calc_angle[0], calc_angle[1])) {
+    if (!manip_IK(&manipulator->target_pos, calc_angle)) {
         ESP_LOGW("IK", "目标点超出工作空间，拒绝执行！");
         return false;
     }
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 4; i++)
     {
         // 检查基础角度合法性
         if (!check_angle_validity(calc_angle[i])) {
-            ESP_LOGW("TASK", "候选解[%d]IK 角度非法，阻断输出！",i);
-            check_flag = i;
+            ESP_LOGW("TASK", "候选解[%d]IK 角度非法",i);
+            check_flag[i] = false;
             continue;
         }
 
         // 检查FK精度
         if (!check_fk_precision(&manipulator->target_pos, calc_angle[i])) {
-            ESP_LOGW("TASK", "候选解[%d]FK 精度校验不通过，阻断输出！",i);
-            check_flag = i;
+            ESP_LOGW("TASK", "候选解[%d]FK 精度校验不通过",i);
+            check_flag[i] = false;
             continue;
         }
     }
-    if (check_flag == 2)
+
+    int8_t index = mult_solutions_selection(calc_angle, manipulator->angle, &check_flag);
+    if(index == -1)
     {
-        uint8_t flag = mult_solutions_selection(calc_angle[0], calc_angle[1], manipulator->angle);
-        // 校验全部通过，才真正更新全局结构体的数据
-        for(joint_id_t i = JOINT_1; i < JOINT_5; i++)
-        {
-            manipulator->angle[i].joint_angle = calc_angle[flag][i];
-        }
-    }else if (check_flag == 0)
+        ESP_LOGW("TASK", "全部候选解IK 角度非法");
+        return false;
+    }
+    // 校验全部通过，才真正更新全局结构体的数据
+    for(joint_id_t i = JOINT_1; i < JOINT_5; i++)
     {
-        // 校验全部通过，才真正更新全局结构体的数据
-        for(joint_id_t i = JOINT_1; i < JOINT_5; i++)
-        {
-            manipulator->angle[i].joint_angle = calc_angle[1][i];
-        }
-    }else if (check_flag == 1)
-    {
-        // 校验全部通过，才真正更新全局结构体的数据
-        for(joint_id_t i = JOINT_1; i < JOINT_5; i++)
-        {
-            manipulator->angle[i].joint_angle = calc_angle[0][i];
-        }
+        manipulator->angle[i].joint_angle = calc_angle[index][i];
     }
     
     return true;
@@ -264,9 +284,12 @@ void theta_to_angle(const float joint_angle, joint_id_t joint_id, float *servo_a
 
     const joint_config_t *cfg = &joint_config[joint_id];
 
-// ==================== 以下转换公式根据实际修改 ======================
     *servo_angle = cfg->offset + cfg->dir * joint_angle;
-
+    if (*servo_angle >= 360.0f)
+    {
+        *servo_angle -=360.0f;
+    }
+    
     //角度限位
     *servo_angle = CLAMP(*servo_angle,ANGLE_MIN,ANGLE_MAX);
     

@@ -4,5 +4,5 @@ idf_component_register(SRCS "hello_world_main.c"
                         trajectory 
                         robotic_arm 
                         test_code
-                        system_control
+                        manipulate
                         )

@@ -27,19 +27,19 @@
 //================ DH参数 ====================
 #define L0  0.0f
 #define L1  10.25f
-#define L2  104.0f
+#define L2  105.0f
 #define L3  0.0f
 #define L4  0.0f
     
 #define d1  0.0f
 #define d2  21.0f
 #define d3  21.0f
-#define d4  69.0f
-#define d5  98.0f
+#define d4  62.0f
+#define d5  107.0f
 
 //======================== 函数 ==============================
 bool check_pos_validity(const pos_t *pos);
-bool manip_IK(const pos_t *target_pos, float *fir_angle, float *sec_angle);
+bool manip_IK(const pos_t *target_pos, float calc_angle[4][JOINT_5]);
 void manip_FK(pos_t *actual_pos, const float *angle);
 bool manip_control_task(manip_t *manipulator);
 void theta_to_angle(const float joint_angle, joint_id_t joint_id, float *servo_angle);
