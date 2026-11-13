@@ -6,93 +6,85 @@ static const char *TAG_IK = "IK";
 static const char *TAG_FK = "FK";
 
 #define FK_EPSILON 0.5f // 允许最大 0.5mm 的位置偏差   FK验证
+#define IK_EPSILON 1e-5f
 
 //检验IK角度合理性
-static bool check_theta_validity(const float *theta) 
+static bool check_theta_validity(const float *cur_theta) 
 {
-    if (theta == NULL) return false;
+    if (cur_theta == NULL) return false;
 
     // ================== 检查是否有任何一个角度变成了 NaN 或 Inf ================
-    if (isnan(theta[JOINT_1]) || isnan(theta[JOINT_2]) || isnan(theta[JOINT_3]) || isnan(theta[JOINT_4]) ||
-        isinf(theta[JOINT_1]) || isinf(theta[JOINT_2]) || isinf(theta[JOINT_3]) || isinf(theta[JOINT_4])) {
+    if (!isfinite(cur_theta[JOINT_1]) ||
+        !isfinite(cur_theta[JOINT_2]) ||
+        !isfinite(cur_theta[JOINT_3]) ||
+        !isfinite(cur_theta[JOINT_4])) {
+
         ESP_LOGE(TAG_IK, "数学运算无效 (NaN 或 Inf)");
         return false;
     }
 
-    // =============== 检查角度是否超出限制范围 ==================
-    if (theta[JOINT_1] < THETA1_MIN || theta[JOINT_1] > THETA1_MAX) {
-        ESP_LOGW(TAG_IK, "Theta1 超限: %.2f", theta[JOINT_1]);
-        return false;
-    }
-    if (theta[JOINT_2] < THETA2_MIN || theta[JOINT_2] > THETA2_MAX) {
-        ESP_LOGW(TAG_IK, "Theta2 超限: %.2f", theta[JOINT_2]);
-        return false;
-    }
-    if (theta[JOINT_3] < THETA3_MIN || theta[JOINT_3] > THETA3_MAX) {
-        ESP_LOGW(TAG_IK, "Theta3 超限: %.2f", theta[JOINT_3]);
-        return false;
-    }
-    if (theta[JOINT_4] < THETA4_MIN || theta[JOINT_4] > THETA4_MAX) {
-        ESP_LOGW(TAG_IK, "Theta4 超限: %.2f", theta[JOINT_4]);
-        return false;
-    }
+    // // =============== 检查角度是否超出限制范围 ==================
+    // if (cur_theta[JOINT_1] < THETA1_MIN || cur_theta[JOINT_1] > THETA1_MAX) {
+    //     ESP_LOGW(TAG_IK, "Theta1 超限: %.2f", cur_theta[JOINT_1]);
+    //     return false;
+    // }
+    // if (cur_theta[JOINT_2] < THETA2_MIN || cur_theta[JOINT_2] > THETA2_MAX) {
+    //     ESP_LOGW(TAG_IK, "Theta2 超限: %.2f", cur_theta[JOINT_2]);
+    //     return false;
+    // }
+    // if (cur_theta[JOINT_3] < THETA3_MIN || cur_theta[JOINT_3] > THETA3_MAX) {
+    //     ESP_LOGW(TAG_IK, "Theta3 超限: %.2f", cur_theta[JOINT_3]);
+    //     return false;
+    // }
+    // if (cur_theta[JOINT_4] < THETA4_MIN || cur_theta[JOINT_4] > THETA4_MAX) {
+    //     ESP_LOGW(TAG_IK, "Theta4 超限: %.2f", cur_theta[JOINT_4]);
+    //     return false;
+    // }
 
     return true;
 }
-// // =============== 检查单周期允许的最大角度变化量 ====================
-// static bool check_theta_delta(const float *theta,
-//                        const theta_t *last_theta)
-// {
-//     if (theta == NULL || last_theta == NULL)
-//         return false;
-
-//     if (fabsf(theta[JOINT_1] - last_theta[JOINT_1].last_joint_theta) > MAX_DELTA_ANGLE ||
-//         fabsf(theta[JOINT_2] - last_theta[JOINT_2].last_joint_theta) > MAX_DELTA_ANGLE ||
-//         fabsf(theta[JOINT_3] - last_theta[JOINT_3].last_joint_theta) > MAX_DELTA_ANGLE) {
-
-//         ESP_LOGW(TAG_IK, "单周期角度突变过大！");
-//         return false;
-//     }
-
-//     return true;
-// }
 
 /**
  * @brief  腿部正运动学 (FK) 验证
  * @param  actual_pos 计算得到的实际末端坐标
- * @param  theta  当前输入的关节角度
+ * @param  cur_theta  当前输入的关节角度
  * @return
  */
-void manip_FK(pos_t *actual_pos, const float *theta)
+void manip_FK(pos_t *actual_pos, const float *cur_theta)
 {
-    if (actual_pos == NULL || theta == NULL) return;
+    if (actual_pos == NULL || cur_theta == NULL) return;
 
-    float t1 = theta[JOINT_1] * DEG_TO_RAD;      // 角度转弧度
-    float t2 = theta[JOINT_2] * DEG_TO_RAD;
-    float t3 = theta[JOINT_3] * DEG_TO_RAD;
+    float t1 = cur_theta[JOINT_1];
+    float t2 = cur_theta[JOINT_2];
+    float t3 = cur_theta[JOINT_3];
+    float t4 = cur_theta[JOINT_4];
     float t23 = t2 - t3;
+    float t234 = t23 - t4;
 
     float c1 = cosf(t1);
     float s1 = sinf(t1);
     float c2 = cosf(t2);
     float s2 = sinf(t2);
-    float c23 = cosf(t23);
     float s23 = sinf(t23);
+    float c23 = cosf(t23);
+    float s234 = sinf(t234);
+    float c234 = cosf(t234);
 
     // 计算公式根据实际变换矩阵修改
-    actual_pos->x = L1*c1 + L2*c1*c2 - (d2 - d3)*s1 + (d4 + d5)*c1*s23;
-    actual_pos->y = L1*s1 + L2*s1*c2 + (d2 - d3)*c1 + (d4 + d5)*s1*s23;
-    actual_pos->z = -L2*s2 + (d4 + d5)*c23;
+    actual_pos->x = c1*(L1 + L2*c2 + L3*c23 + (d5+d6)*s234);
+    actual_pos->y = s1*(L1 + L2*c2 + L3*c23 + (d5+d6)*s234);
+    actual_pos->z = -L2*s2 - L3*s23 + (d5+d6)*c234;
 }
 
 // FK 结果精度检验
-static bool check_fk_precision(const pos_t *target_pos, const float *theta) {
-    if (target_pos == NULL || theta == NULL) return false;
+static bool check_fk_precision(const pos_t *target_pos, const float *cur_theta) 
+{
+    if (target_pos == NULL || cur_theta == NULL) return false;
 
     pos_t calc_pos;
     
     // 用 IK 解出的角度反算 FK 得到位置
-    manip_FK(&calc_pos, theta);
+    manip_FK(&calc_pos, cur_theta);
     
     // 计算欧式距离平方: (dx^2 + dy^2 + dz^2)
     float dx = target_pos->x - calc_pos.x;
@@ -109,186 +101,207 @@ static bool check_fk_precision(const pos_t *target_pos, const float *theta) {
     return true;
 }
 
+// 计算当前解误差
+float mult_solutions_selection(const float calc_theta[JOINT_5], 
+                                const float *last_theta)
+{
+    float errors = 0.0f;
+    // ==================== 多解选择 ====================
+    for (joint_id_t i = JOINT_1; i <= JOINT_4; i++)
+    {
+        float diff = calc_theta[i] * RAD_TO_DEG - last_theta[i];
+
+        errors += diff * diff;
+    }
+    return errors;
+}
+
 /**
  * @brief  腿部逆运动学 (IK)
  * @param  target_pos       目标脚尖坐标 (x, y, z)
  * @param  calc_theta       输出关节角度
  * @return bool             解算成功返回 true，超工作空间返回 false
  */
-bool manip_IK(const pos_t *target_pos, float calc_theta[THETA_MAX_NUM][JOINT_5])
+bool manip_IK(const pos_t *target_pos, const float *last_theta, float beta, 
+            float temp_theta[4], float *min_error)
 {
-    if (target_pos == NULL || calc_theta == NULL) return false;
-    float theta[THETA_MAX_NUM][JOINT_4] = {
-        {0.0f,0.0f,0.0f},
-        {0.0f,0.0f,0.0f},
-        {0.0f,0.0f,0.0f},
-        {0.0f,0.0f,0.0f}
-    };
-
+    if(target_pos == NULL || last_theta == NULL || min_error == NULL) return false;
     float x = target_pos->x;
     float y = target_pos->y;
     float z = target_pos->z;
-    float xy_sq = x * x + y * y;
-    
-    if (!isfinite(x) || !isfinite(y) || !isfinite(z))
-    {
-        ESP_LOGE(TAG_IK, "目标坐标包含无效数值");
+
+    float P = sqrtf(x*x + y*y);
+
+    float X[2] = {
+        (P - L1 - (d5+d6)*sinf(beta)),
+        (-P - L1 - (d5+d6)*sinf(beta))
+    };
+    float Y = -z + (d5+d6)*cosf(beta);
+    float D[2] = {
+        (X[0]*X[0] + Y*Y),
+        (X[1]*X[1] + Y*Y),
+    };
+
+    // float l1 = (L3-L4);
+    // float l2 = (L3+L4);
+    // if(!((l1*l1 <=D[0] && D[0]<= l2*l2)
+    //     || (l1*l1 <=D[1] && D[1]<= l2*l2)))
+    // {
+    //     ESP_LOGW("IK","D计算错误");
+    //     return false;
+    // }
+
+    float Q[2] = {
+        (D[0] - L2*L2 - L3*L3) / (2*L2*L3),
+        (D[1] - L2*L2 - L3*L3) / (2*L2*L3),
+    };
+    bool q_valid[2] = {
+        Q[0] >= -1.0f - IK_EPSILON && Q[0] <= 1.0f + IK_EPSILON,
+        Q[1] >= -1.0f - IK_EPSILON && Q[1] <= 1.0f + IK_EPSILON
+    };
+
+    if (!q_valid[0] && !q_valid[1]) {
+        ESP_LOGW("IK","Q越界");
         return false;
     }
 
-    float h = d2 - d3;
-    float r = xy_sq - h*h;
-    if(r < 0)
+    Q[0] = CLAMP(Q[0], -1.0f, 1.0f);
+    Q[1] = CLAMP(Q[1], -1.0f, 1.0f);
+
+    float t1[2] = {
+        atan2f(y,x),
+        atan2f(y,x) + PI
+    };
+    float t3[4] = {
+        acosf(Q[0]),
+        acosf(Q[1]),
+        -acosf(Q[0]),
+        -acosf(Q[1]),
+    };
+    float t2[4] = 
     {
-        ESP_LOGE(TAG_IK, "目标点过近，根号内为负数");
-        return false; 
-    }
-    float R_1 = sqrtf(r);
-    float R_2 = -sqrtf(r);
-    float L = d4 + d5;
-    float P_1 = R_1 - L1;
-    float P_2 = R_2 - L1;
-    float alpha = atan2f(L,L3);
-    float C_1 = (P_1*P_1 + z*z -L2*L2 - L*L)/(2.0f*L2*L);
-    float C_2 = (P_2*P_2 + z*z -L2*L2 - L*L)/(2.0f*L2*L);
-    if (C_1 < -1.0f || C_1 > 1.0f)
-        ESP_LOGW(TAG_IK, "C_1 超出 acosf 定义域: %.6f", C_1);
-
-    if (C_2 < -1.0f || C_2 > 1.0f)
-        ESP_LOGW(TAG_IK, "C_2 超出 acosf 定义域: %.6f", C_2);
-// ===================== 以下公式根据实际变换矩阵修改 ======================
-    // 第一关节
-    float t1_1 = atan2f(y, x) - atan2f(h, R_1);
-    float t1_2 = atan2f(y, x) - atan2f(h, R_2);
-    theta[1][JOINT_1] = theta[0][JOINT_1] = t1_1 * RAD_TO_DEG;
-    theta[3][JOINT_1] = theta[2][JOINT_1] = t1_2 * RAD_TO_DEG;
-
-    float t3_1_1 = acosf(C_1) - alpha;
-    float t3_1_2 = -acosf(C_1) - alpha;
-    float t3_2_1 = acosf(C_2) - alpha;
-    float t3_2_2 = -acosf(C_2) - alpha;
-    theta[0][JOINT_3] = t3_1_1 * RAD_TO_DEG;
-    theta[1][JOINT_3] = t3_1_2 * RAD_TO_DEG;
-    theta[2][JOINT_3] = t3_2_1 * RAD_TO_DEG;
-    theta[3][JOINT_3] = t3_2_2 * RAD_TO_DEG;
-
-    // 第二关节
-    float t2_1_1 = atan2f(-z,P_1) + atan2f(L*sin(t3_1_1 + alpha), L2 + L*cos(t3_1_1 + alpha));
-    float t2_1_2 = atan2f(-z,P_1) + atan2f(L*sin(t3_1_2 + alpha), L2 + L*cos(t3_1_2 + alpha));
-    float t2_2_1 = atan2f(-z,P_2) + atan2f(L*sin(t3_2_1 + alpha), L2 + L*cos(t3_2_1 + alpha));
-    float t2_2_2 = atan2f(-z,P_2) + atan2f(L*sin(t3_2_2 + alpha), L2 + L*cos(t3_2_2 + alpha));
-    theta[0][JOINT_2] = t2_1_1 * RAD_TO_DEG;
-    theta[1][JOINT_2] = t2_1_2 * RAD_TO_DEG;
-    theta[2][JOINT_2] = t2_2_1 * RAD_TO_DEG;
-    theta[3][JOINT_2] = t2_2_2 * RAD_TO_DEG;
-
-    for (int i = 0; i < 4; i++)
+        atan2f(Y,X[0]) - atan2f(-L3*sinf(t3[0]), L2+L3*cosf(t3[0])),
+        atan2f(Y,X[1]) - atan2f(-L3*sinf(t3[1]), L2+L3*cosf(t3[1])),
+        atan2f(Y,X[0]) - atan2f(-L3*sinf(t3[2]), L2+L3*cosf(t3[2])),
+        atan2f(Y,X[1]) - atan2f(-L3*sinf(t3[3]), L2+L3*cosf(t3[3])),
+    };
+    float t4[4] = 
     {
-        for(joint_id_t j = JOINT_1; j<=JOINT_3; j++)
+        t2[0] - t3[0] - beta,
+        t2[1] - t3[1] - beta,
+        t2[2] - t3[2] - beta,
+        t2[3] - t3[3] - beta,
+    };
+
+    float theta_set[4][JOINT_5] = {
+        {t1[0],t2[0],t3[0],t4[0]},
+        {t1[1],t2[1],t3[1],t4[1]},
+        {t1[0],t2[2],t3[2],t4[2]},
+        {t1[1],t2[3],t3[3],t4[3]},
+    };
+    float temp_min_errors = INFINITY;   // 当前解集最小偏差
+    int8_t min_index = -1;              // 最小偏差索引
+    // 寻找当前最小偏差解
+    for(int i =0; i<4; i++)
+    {
+        // 0、2 对应第一支；1、3 对应第二支
+        if (!q_valid[i % 2]) {
+            continue;
+        }
+        // IK检验
+        if(check_theta_validity(theta_set[i]))
         {
-            calc_theta[i][j] = theta[i][j];
+            // 检查FK精度
+            if (check_fk_precision(target_pos, theta_set[i])) {
+                // 计算偏差
+                float error = mult_solutions_selection(theta_set[i],last_theta);
+                if(error < temp_min_errors)
+                {
+                    temp_min_errors = error;
+                    min_index = i;
+                }
+            }else ESP_LOGW("TASK", "FK 精度校验不通过");
         }
     }
-    
-    calc_theta[0][JOINT_4] = -90.0f;
-    calc_theta[1][JOINT_4] = -90.0f;
-    calc_theta[2][JOINT_4] = -90.0f;
-    calc_theta[3][JOINT_4] = -90.0f;
+    // 没找到解或者最小解大于上一次最小解
+    if(min_index == -1 || *min_error <= temp_min_errors)
+    {
+        return false;
+    }
+    for (int i = 0; i < 4; i++)
+    {
+        temp_theta[i] = theta_set[min_index][i] * RAD_TO_DEG;
+    }
+    *min_error = temp_min_errors;
 
     return true;
 }
 
-// 计算误差
-int8_t mult_solutions_selection(float calc_theta[THETA_MAX_NUM][JOINT_5], 
-                                const theta_t *g_theta, 
-                                const bool flag[THETA_MAX_NUM])
+// 逆解，多解选择
+bool manipulate(const pos_t *target_pos, const float *last_theta, float *cur_theta)
 {
-    // ==================== 多解选择 ====================
-    int8_t min_index = -1;
-    float min_errors = INFINITY;
-    for (int j = 0; j < 4; j++)
+    // 本次逆解值
+    float temp_theta[JOINT_5] = {0.0,0.0,0.0,0.0};
+    float min_error = INFINITY;      // 最小差值
+    bool valid = false;                     // 是否有解
+
+    // 专门检查 beta = 0
+    if(manip_IK(target_pos, last_theta, 0.0f, temp_theta, &min_error))
     {
-        if (!flag[j])
-        {
-            continue;
-        }
-        float errors = 0.0f;
-        for (joint_id_t i = JOINT_1; i <= JOINT_4; i++)
-        {
-            float current = g_theta[i].last_joint_theta;
-
-            float diff = calc_theta[j][i] - current;
-
-            errors += diff * diff;
-        }
-        if(errors < min_errors)
-        {
-            min_errors = errors;
-            min_index = j;
-        }
+        valid = true;
     }
-    return min_index;
+    // for (float beta = -PI; beta <= PI; beta += 0.01f)
+    // {
+    //     if(!manip_IK(target_pos, last_theta, beta, temp_theta, &min_error))
+    //     {
+    //         continue;
+    //     }else valid = true;
+    // }
+
+    if(valid)
+    {
+        cur_theta[JOINT_1] = temp_theta[0];
+        cur_theta[JOINT_2] = temp_theta[1];
+        cur_theta[JOINT_3] = temp_theta[2];
+        cur_theta[JOINT_4] = temp_theta[3];
+        cur_theta[JOINT_5] = -90.0f;
+        cur_theta[JOINT_6] = -90.0f;
+    }else ESP_LOGW("MANIP","无有效解");
+    return valid;
 }
 
 bool manip_control(manip_t *manipulator) 
 {
     if (manipulator == NULL) return false;
-    bool check_flag[THETA_MAX_NUM] = {true,true,true,true};
 
     // 使用局部临时变量接收 IK 解算结果（防止脏数据写入）
-    float calc_theta[THETA_MAX_NUM][JOINT_5] = {{0.0f,0.0f,0.0f,0.0f},
-                                    {0.0f,0.0f,0.0f,0.0f},
-                                    {0.0f,0.0f,0.0f,0.0f},
-                                    {0.0f,0.0f,0.0f,0.0f}};
+    float calc_theta[JOINT_MAX_NUM] = {0.0f,0.0f,0.0f,0.0f,0.0f,0.0f};
 
     // 求解 IK
-    if (!manip_IK(&manipulator->target_pos, calc_theta)) {
+    if (!manipulate(&manipulator->target_pos, manipulator->last_joint_theta, calc_theta)) {
         ESP_LOGW("IK", "目标点超出工作空间，拒绝执行！");
         return false;
     }
-    for (int i = 0; i < THETA_MAX_NUM; i++)
-    {
-        // 检查基础角度合法性
-        if (!check_theta_validity(calc_theta[i])) {
-            ESP_LOGW("TASK", "候选解[%d]IK 角度非法",i);
-            check_flag[i] = false;
-            continue;
-        }
 
-        // 检查FK精度
-        if (!check_fk_precision(&manipulator->target_pos, calc_theta[i])) {
-            ESP_LOGW("TASK", "候选解[%d]FK 精度校验不通过",i);
-            check_flag[i] = false;
-            continue;
-        }
-    }
-
-    int8_t index = mult_solutions_selection(calc_theta, manipulator->joint_theta, &check_flag);
-    if(index == -1)
-    {
-        ESP_LOGW("TASK", "全部候选解IK 角度非法");
-        return false;
-    }
     // 校验全部通过，才真正更新全局结构体的数据
     for(joint_id_t i = JOINT_1; i < JOINT_5; i++)
     {
-        manipulator->joint_theta[i].cur_joint_theta = calc_theta[index][i];
+        manipulator->cur_joint_theta[i] = calc_theta[i];
     }
     
     return true;
 }
 
 //关节角转换舵机角度
-void theta_to_angle(theta_t *s_theta, servo_angle_t *s_angle)
+void theta_to_angle(float *cur_theta, float *s_angle)
 {
-    if(s_angle == NULL || s_theta == NULL) return;
-    const joint_config_t *cfg = &joint_config;
+    if(s_angle == NULL || cur_theta == NULL) return;
+    const joint_config_t *cfg = joint_config;
 
     for (joint_id_t i = JOINT_1; i < JOINT_MAX_NUM; i++)
     {
-
         float angle;
-        angle = cfg[i].offset + cfg[i].dir * s_theta[i].cur_joint_theta;
+        angle = cfg[i].offset + cfg[i].dir * cur_theta[i];
         if (angle >= 360.0f)
         {
             angle -=360.0f;
@@ -296,7 +309,17 @@ void theta_to_angle(theta_t *s_theta, servo_angle_t *s_angle)
         
         //角度限位
         angle = CLAMP(angle,ANGLE_MIN,ANGLE_MAX);
-        s_angle[i].target_angle = angle;
+        s_angle[i] = angle;
     }
-    
+}
+
+// 计算占空比
+uint16_t servo_pos_get(float theta)
+{
+    //角度限位
+    theta = CLAMP(theta,ANGLE_MIN,ANGLE_MAX);
+
+    // 0度0.5ms = 0.025f(0.5/20)
+    uint16_t duty = ((float)theta / 270.0f ) * 2000 + 500;
+    return duty;
 }

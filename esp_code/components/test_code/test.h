@@ -3,6 +3,6 @@
 
 void theta_map_angle(void);
 void manip_IKtest(float x0, float y0, float z0);
-void manip_FKtest(float joint1,float joint2, float joint3);
+void manip_FKtest(float joint1,float joint2, float joint3, float joint4);
 
 #endif

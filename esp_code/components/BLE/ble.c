@@ -28,7 +28,7 @@ static uint16_t rx_value_handler;
 static uint16_t tx_value_handler;
 
 // 数据解析函数
-bool parse_coord_frame(const uint8_t *data, uint16_t len, pos_t *pos)
+static bool parse_coord_frame(const uint8_t *data, uint16_t len, pos_t *pos)
 {
     if (data == NULL || pos == NULL ||len != FRAME_LEN) {
         return false;
@@ -112,6 +112,8 @@ static int gatt_event_handle(uint16_t conn_handle,
                     return BLE_ATT_ERR_UNLIKELY;
                 }
                 ble_send_string("OK");
+                ESP_LOGI(TAG,"接收到坐标 x=%.2f y=%.2f z=%.2f",
+                            target_pos.x,target_pos.y,target_pos.z);
             }else{
                 ESP_LOGW(TAG, "坐标帧格式错误");
                 ble_send_string("ERR:FRAME");

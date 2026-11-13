@@ -9,6 +9,7 @@
 #define  DATA_LENGTH    32
 
 void myuart_init(void);
-void uart_senddata(uint8_t *data_buf);
+void uart_senddata(uint8_t *txdata_buf);
+int uart_receivedata(uint8_t *rx_buf, int buf_max_len);
 
 #endif

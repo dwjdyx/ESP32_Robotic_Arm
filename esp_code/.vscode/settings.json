@@ -14,5 +14,5 @@
     "--compile-commands-dir=d:\\ESP32-S3\\2-esp_project\\6-6DOF_arm\\build"
   ],
   "idf.flashType": "UART",
-  "idf.port": "COM15"
+  "idf.port": "COM8"
 }
